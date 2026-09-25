@@ -693,6 +693,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_append_trailing_space_setting,
             shortcut::change_remote_transcription_enabled_setting,
             shortcut::change_remote_transcription_url_setting,
+            shortcut::change_remote_transcription_fallback_setting,
             shortcut::change_lazy_stream_close_setting,
             shortcut::change_vad_enabled_setting,
             shortcut::change_vad_backend_setting,

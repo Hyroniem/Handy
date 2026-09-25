@@ -745,7 +745,12 @@ impl TranscriptionManager {
         if get_settings(&self.app_handle).remote_transcription_enabled {
             return;
         }
+        self.initiate_local_model_load();
+    }
 
+    /// Like [`Self::initiate_model_load`], but also while a remote server is
+    /// configured: used when that server fails and the local model takes over.
+    fn initiate_local_model_load(&self) {
         let mut is_loading = self.is_loading.lock().unwrap();
         if *is_loading {
             return;
@@ -1203,7 +1208,21 @@ impl TranscriptionManager {
         let settings = get_settings(&self.app_handle);
 
         if settings.remote_transcription_enabled {
-            return transcribe_remote(&audio, &settings);
+            match transcribe_remote(&audio, &settings) {
+                Ok(text) => return Ok(text),
+                Err(e) if settings.remote_transcription_fallback => {
+                    if settings.selected_model.is_empty() {
+                        return Err(e.context("no local model selected to fall back on"));
+                    }
+                    warn!(
+                        "Remote transcription failed ({}); falling back to local model '{}'",
+                        e, settings.selected_model
+                    );
+                    // The wait below picks up this load like any other.
+                    self.initiate_local_model_load();
+                }
+                Err(e) => return Err(e),
+            }
         }
 
         // Check if model is loaded, if not try to load it
@@ -1546,6 +1565,9 @@ impl TranscriptionManager {
 /// How long to wait for the remote server. Generous, because a server that
 /// is busy with a long file answers only after finishing it.
 const REMOTE_TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(300);
+/// A server that is down refuses or ignores the connection; don't make the
+/// user wait long before the local fallback takes over.
+const REMOTE_TRANSCRIPTION_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Deserialize)]
 struct RemoteTranscriptionResponse {
@@ -1599,6 +1621,7 @@ fn transcribe_remote(audio: &[f32], settings: &AppSettings) -> Result<String> {
 
             let response = reqwest::Client::builder()
                 .timeout(REMOTE_TRANSCRIPTION_TIMEOUT)
+                .connect_timeout(REMOTE_TRANSCRIPTION_CONNECT_TIMEOUT)
                 .build()?
                 .post(&request_url)
                 .multipart(form)

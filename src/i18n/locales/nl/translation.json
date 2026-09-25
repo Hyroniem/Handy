@@ -646,6 +646,10 @@
       "url": {
         "title": "Server-URL",
         "description": "Basis-URL van de API, inclusief /v1. Handy stuurt naar {URL}/audio/transcriptions."
+      },
+      "fallback": {
+        "label": "Terugvallen op lokaal model",
+        "description": "Laad het lokale model en transcribeer daarmee als de server niet bereikbaar is of een fout geeft. De volgende opname probeert eerst weer de server."
       }
     }
   },

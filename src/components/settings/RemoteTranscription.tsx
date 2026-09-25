@@ -17,6 +17,7 @@ export const RemoteTranscription: React.FC<RemoteTranscriptionProps> =
 
     const enabled = getSetting("remote_transcription_enabled") ?? false;
     const url = getSetting("remote_transcription_url") ?? "";
+    const fallback = getSetting("remote_transcription_fallback") ?? true;
     const [localUrl, setLocalUrl] = useState(url);
 
     useEffect(() => {
@@ -58,6 +59,19 @@ export const RemoteTranscription: React.FC<RemoteTranscriptionProps> =
               className="flex-1 min-w-[280px]"
             />
           </SettingContainer>
+        )}
+        {enabled && (
+          <ToggleSwitch
+            checked={fallback}
+            onChange={(enabled) =>
+              updateSetting("remote_transcription_fallback", enabled)
+            }
+            isUpdating={isUpdating("remote_transcription_fallback")}
+            label={t("settings.remoteTranscription.fallback.label")}
+            description={t("settings.remoteTranscription.fallback.description")}
+            descriptionMode={descriptionMode}
+            grouped={grouped}
+          />
         )}
       </>
     );

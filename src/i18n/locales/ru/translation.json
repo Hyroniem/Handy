@@ -646,6 +646,10 @@
       "url": {
         "title": "Server URL",
         "description": "Base URL of the API, including /v1. Handy posts to {URL}/audio/transcriptions."
+      },
+      "fallback": {
+        "label": "Fall Back to Local Model",
+        "description": "If the server can't be reached or returns an error, load the local model and transcribe with it. The next recording tries the server again."
       }
     }
   },

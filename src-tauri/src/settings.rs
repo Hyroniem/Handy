@@ -522,10 +522,18 @@ pub struct AppSettings {
     /// Base URL of the OpenAI-compatible API, including the `/v1` part.
     #[serde(default = "default_remote_transcription_url")]
     pub remote_transcription_url: String,
+    /// When the remote server fails, load the local model and transcribe
+    /// with it instead of losing the recording.
+    #[serde(default = "default_remote_transcription_fallback")]
+    pub remote_transcription_fallback: bool,
 }
 
 fn default_remote_transcription_url() -> String {
     "http://127.0.0.1:8000/v1".to_string()
+}
+
+fn default_remote_transcription_fallback() -> bool {
+    true
 }
 
 fn default_model() -> String {
@@ -984,6 +992,7 @@ pub fn get_default_settings() -> AppSettings {
         overlay_style: default_overlay_style(),
         remote_transcription_enabled: false,
         remote_transcription_url: default_remote_transcription_url(),
+        remote_transcription_fallback: default_remote_transcription_fallback(),
     }
 }
 

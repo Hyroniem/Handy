@@ -367,6 +367,14 @@ async changeRemoteTranscriptionUrlSetting(url: string) : Promise<Result<null, st
     else return { status: "error", error: e  as any };
 }
 },
+async changeRemoteTranscriptionFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_remote_transcription_fallback_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeLazyStreamCloseSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_lazy_stream_close_setting", { enabled }) };
@@ -1031,7 +1039,12 @@ remote_transcription_enabled?: boolean;
 /**
  * Base URL of the OpenAI-compatible API, including the `/v1` part.
  */
-remote_transcription_url?: string }
+remote_transcription_url?: string; 
+/**
+ * When the remote server fails, load the local model and transcribe
+ * with it instead of losing the recording.
+ */
+remote_transcription_fallback?: boolean }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
