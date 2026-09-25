@@ -636,6 +636,17 @@
         "label": "Yenilikleri Göster",
         "description": "Handy güncellemelerinden sonra sürüm notlarını göster"
       }
+    },
+    "remoteTranscription": {
+      "title": "Transcription Server",
+      "enabled": {
+        "label": "Use External Server",
+        "description": "Send recordings to an OpenAI-compatible Whisper server instead of loading a local model. Saves GPU memory when that server already runs."
+      },
+      "url": {
+        "title": "Server URL",
+        "description": "Base URL of the API, including /v1. Handy posts to {URL}/audio/transcriptions."
+      }
     }
   },
   "footer": {

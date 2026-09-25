@@ -7,27 +7,8 @@
 # Build artifacts are pushed to Cachix so Nix users can skip local compilation.
 
 name: "nix build check"
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "flake.nix"
-      - "flake.lock"
-      - ".nix/**"
-      - "bun.lock"
-      - "src-tauri/**"
-      - "src/**"
-      - ".github/workflows/**"
-  pull_request:
-    paths:
-      - "flake.nix"
-      - "flake.lock"
-      - ".nix/**"
-      - "bun.lock"
-      - "src-tauri/**"
-      - "src/**"
-      - ".github/workflows/**"
+# Fork: manual only (needs upstream Cachix secrets).
+on: workflow_dispatch
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

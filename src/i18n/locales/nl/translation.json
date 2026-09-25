@@ -636,6 +636,17 @@
           "details": "Handy's lokale spraak-naar-tekst is gebouwd op transcribe.cpp en ggml. Met dank aan het geweldige werk van Georgi Gerganov en alle bijdragers."
         }
       }
+    },
+    "remoteTranscription": {
+      "title": "Transcriptieserver",
+      "enabled": {
+        "label": "Externe server gebruiken",
+        "description": "Stuur opnames naar een OpenAI-compatibele Whisper-server in plaats van een lokaal model te laden. Bespaart GPU-geheugen als die server al draait."
+      },
+      "url": {
+        "title": "Server-URL",
+        "description": "Basis-URL van de API, inclusief /v1. Handy stuurt naar {URL}/audio/transcriptions."
+      }
     }
   },
   "footer": {

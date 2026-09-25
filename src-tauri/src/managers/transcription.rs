@@ -742,6 +742,10 @@ impl TranscriptionManager {
 
     /// Kicks off the model loading in a background thread if it's not already loaded
     pub fn initiate_model_load(&self) {
+        if get_settings(&self.app_handle).remote_transcription_enabled {
+            return;
+        }
+
         let mut is_loading = self.is_loading.lock().unwrap();
         if *is_loading {
             return;
@@ -1195,6 +1199,13 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
+        // Get current settings for configuration
+        let settings = get_settings(&self.app_handle);
+
+        if settings.remote_transcription_enabled {
+            return transcribe_remote(&audio, &settings);
+        }
+
         // Check if model is loaded, if not try to load it
         {
             // If the model is loading, wait for it to complete.
@@ -1208,9 +1219,6 @@ impl TranscriptionManager {
                 return Err(anyhow::anyhow!("Model is not loaded for transcription."));
             }
         }
-
-        // Get current settings for configuration
-        let settings = get_settings(&self.app_handle);
 
         // Validate selected language against the model's supported languages.
         // If the language isn't supported, fall back to "auto" to prevent errors.
@@ -1533,6 +1541,134 @@ impl TranscriptionManager {
 
         Ok(final_result)
     }
+}
+
+/// How long to wait for the remote server. Generous, because a server that
+/// is busy with a long file answers only after finishing it.
+const REMOTE_TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(300);
+
+#[derive(Deserialize)]
+struct RemoteTranscriptionResponse {
+    text: String,
+}
+
+/// Transcribe via an OpenAI-compatible server (`/audio/transcriptions`, or
+/// `/audio/translations` when translating to English). The local model is
+/// never loaded on this path.
+fn transcribe_remote(audio: &[f32], settings: &AppSettings) -> Result<String> {
+    let st = Instant::now();
+    let base_url = settings.remote_transcription_url.trim_end_matches('/');
+    if base_url.is_empty() {
+        return Err(anyhow::anyhow!("No transcription server URL configured."));
+    }
+    let endpoint = if settings.translate_to_english {
+        "translations"
+    } else {
+        "transcriptions"
+    };
+    let url = format!("{}/audio/{}", base_url, endpoint);
+
+    let language = normalize_cjk_language(&settings.selected_language).to_string();
+    let send_language = !settings.translate_to_english && language != "auto";
+    // Whisper servers take custom words as the initial prompt, the same way
+    // the local whisper path does.
+    let prompt = settings.custom_words.join(", ");
+    let wav = encode_wav(audio)?;
+
+    // reqwest is async and transcribe() is called both from async tasks and
+    // from plain threads; blocking on the runtime from inside one of its own
+    // tasks panics, so the request runs on a thread of its own.
+    let request_url = url.clone();
+    let text = thread::spawn(move || {
+        tauri::async_runtime::block_on(async move {
+            let mut form = reqwest::multipart::Form::new()
+                .part(
+                    "file",
+                    reqwest::multipart::Part::bytes(wav)
+                        .file_name("audio.wav")
+                        .mime_str("audio/wav")?,
+                )
+                .text("model", "whisper-1")
+                .text("response_format", "json");
+            if send_language {
+                form = form.text("language", language);
+            }
+            if !prompt.is_empty() {
+                form = form.text("prompt", prompt);
+            }
+
+            let response = reqwest::Client::builder()
+                .timeout(REMOTE_TRANSCRIPTION_TIMEOUT)
+                .build()?
+                .post(&request_url)
+                .multipart(form)
+                .send()
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!(
+                        "Could not reach transcription server at {}: {}",
+                        request_url,
+                        e
+                    )
+                })?;
+            let status = response.status();
+            let body = response.text().await?;
+            if !status.is_success() {
+                return Err(anyhow::anyhow!(
+                    "Transcription server returned {}: {}",
+                    status,
+                    body.trim()
+                ));
+            }
+            let parsed: RemoteTranscriptionResponse = serde_json::from_str(&body)
+                .map_err(|e| anyhow::anyhow!("Unexpected response from server: {}", e))?;
+            Ok::<String, anyhow::Error>(parsed.text)
+        })
+    })
+    .join()
+    .map_err(|_| anyhow::anyhow!("Remote transcription thread panicked"))??;
+
+    let output_language = if settings.translate_to_english {
+        OutputLanguageEvidence::TranslatedToEnglish
+    } else if settings.selected_language != "auto" {
+        OutputLanguageEvidence::UserSelected(settings.selected_language.clone())
+    } else {
+        OutputLanguageEvidence::Unknown
+    };
+    let result = post_process_transcription_text(text, settings, true, &output_language, &[]);
+
+    let elapsed_secs = st.elapsed().as_secs_f64();
+    let audio_secs = audio.len() as f64 / 16_000.0;
+    info!(
+        "Remote transcription via {} completed in {:.2}s for {:.2}s of audio ({:.2}x real-time)",
+        url,
+        elapsed_secs,
+        audio_secs,
+        real_time_factor(audio_secs, elapsed_secs)
+    );
+    if !result.is_empty() {
+        info!("Transcription result: {}", crate::utils::redact_text(&result));
+    }
+    Ok(result)
+}
+
+/// 16 kHz mono 16-bit PCM WAV in memory, the same format Handy saves recordings in.
+fn encode_wav(samples: &[f32]) -> Result<Vec<u8>> {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: 16000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut cursor = std::io::Cursor::new(Vec::with_capacity(44 + samples.len() * 2));
+    {
+        let mut writer = hound::WavWriter::new(&mut cursor, spec)?;
+        for sample in samples {
+            writer.write_sample((sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16)?;
+        }
+        writer.finalize()?;
+    }
+    Ok(cursor.into_inner())
 }
 
 struct StreamPerf {

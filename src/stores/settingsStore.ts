@@ -162,6 +162,10 @@ const settingUpdaters: {
     commands.changeMuteWhileRecordingSetting(value as boolean),
   append_trailing_space: (value) =>
     commands.changeAppendTrailingSpaceSetting(value as boolean),
+  remote_transcription_enabled: (value) =>
+    commands.changeRemoteTranscriptionEnabledSetting(value as boolean),
+  remote_transcription_url: (value) =>
+    commands.changeRemoteTranscriptionUrlSetting(value as string),
   log_level: (value) => commands.setLogLevel(value as any),
   app_language: (value) => commands.changeAppLanguageSetting(value as string),
   theme: (value) => commands.changeThemeSetting(value as string),

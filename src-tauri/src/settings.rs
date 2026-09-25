@@ -1,4 +1,3 @@
-use crate::utils;
 use log::{debug, warn};
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -514,6 +513,19 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    /// Send recordings to an external OpenAI-compatible transcription server
+    /// (`POST {remote_transcription_url}/audio/transcriptions`) instead of
+    /// loading a local model. Lets Handy share a Whisper server that already
+    /// holds the model in GPU memory.
+    #[serde(default)]
+    pub remote_transcription_enabled: bool,
+    /// Base URL of the OpenAI-compatible API, including the `/v1` part.
+    #[serde(default = "default_remote_transcription_url")]
+    pub remote_transcription_url: String,
+}
+
+fn default_remote_transcription_url() -> String {
+    "http://127.0.0.1:8000/v1".to_string()
 }
 
 fn default_model() -> String {
@@ -970,6 +982,8 @@ pub fn get_default_settings() -> AppSettings {
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
+        remote_transcription_enabled: false,
+        remote_transcription_url: default_remote_transcription_url(),
     }
 }
 
@@ -1192,10 +1206,11 @@ fn apply_settings_migrations(
 /// Update checks are forced off (without touching the persisted setting) when
 /// `HANDY_DISABLE_UPDATER` is set — e.g. by the Nix package, since self-update
 /// can't work against an immutable /nix/store install.
+///
+/// Fork: always off. The updater would install upstream Handy releases over
+/// this build and silently drop the remote transcription option.
 pub fn update_checks_forced_disabled() -> bool {
-    use std::sync::OnceLock;
-    static IS_UPDATER_DISABLED: OnceLock<bool> = OnceLock::new();
-    *IS_UPDATER_DISABLED.get_or_init(|| utils::env_flag_enabled("HANDY_DISABLE_UPDATER"))
+    true
 }
 
 /// Effective updater state: the user's stored preference, overridden to `false`
