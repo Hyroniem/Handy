@@ -1647,7 +1647,10 @@ fn transcribe_remote(audio: &[f32], settings: &AppSettings) -> Result<String> {
         real_time_factor(audio_secs, elapsed_secs)
     );
     if !result.is_empty() {
-        info!("Transcription result: {}", crate::utils::redact_text(&result));
+        info!(
+            "Transcription result: {}",
+            crate::utils::redact_text(&result)
+        );
     }
     Ok(result)
 }

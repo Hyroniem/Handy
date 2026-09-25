@@ -1279,8 +1279,8 @@ pub fn change_remote_transcription_enabled_setting(
 
     // The server holds the model now; free the local one right away.
     if enabled {
-        let tm = app
-            .state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>();
+        let tm =
+            app.state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>();
         if tm.is_model_loaded() {
             tm.unload_model().map_err(|e| e.to_string())?;
         }
