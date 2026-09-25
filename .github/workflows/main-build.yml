@@ -5,7 +5,7 @@ name: "Main Branch Build"
 # so any commit on main has a downloadable, testable build.
 
 # Fork: manual only. The full matrix needs upstream's signing secrets;
-# fork-linux-build.yml builds the Linux .deb on push instead.
+# fork-build.yml builds Linux and Windows on push instead.
 on: workflow_dispatch
 
 concurrency:
