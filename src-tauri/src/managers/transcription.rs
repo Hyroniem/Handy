@@ -1567,7 +1567,7 @@ impl TranscriptionManager {
 const REMOTE_TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(300);
 /// A server that is down refuses or ignores the connection; don't make the
 /// user wait long before the local fallback takes over.
-const REMOTE_TRANSCRIPTION_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const REMOTE_TRANSCRIPTION_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Deserialize)]
 struct RemoteTranscriptionResponse {
