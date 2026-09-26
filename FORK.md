@@ -1,6 +1,6 @@
-# Handy-fork: externe Whisper-server
+# handy-remote: Handy met externe Whisper-server
 
-Deze fork van [cjpais/Handy](https://github.com/cjpais/Handy) voegt één optie toe:
+**handy-remote** is een fork van [cjpais/Handy](https://github.com/cjpais/Handy) en voegt één optie toe:
 **Modellen → Transcriptieserver → Externe server gebruiken**. Handy stuurt opnames
 dan naar een OpenAI-compatibele server (`{URL}/audio/transcriptions`) en laadt zelf
 geen model op de GPU.
@@ -17,7 +17,7 @@ start: kies _Meer informatie → Toch uitvoeren_.
 
 ## Een upstream-update binnenhalen
 
-1. Open https://github.com/Hyroniem/Handy. Staat er "This branch is N commits behind
+1. Open https://github.com/Hyroniem/handy-remote. Staat er "This branch is N commits behind
    cjpais/Handy:main", klik dan op **Sync fork → Update branch**.
 2. Lukt dat zonder conflict, dan start **Fork Build** vanzelf. Download en installeer
    daarna het nieuwe pakket. Upstream verhoogt het versienummer, dus het pakket
