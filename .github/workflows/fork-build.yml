@@ -1,6 +1,7 @@
 name: "Fork Build"
 
-# Unsigned Linux .deb and Windows installers (.exe and .msi) for this fork.
+# Unsigned installers for this fork: Linux .deb, Windows .exe and .msi, and
+# macOS .dmg (Apple Silicon and Intel, ad-hoc signed, not notarized).
 # Download them from the run's artifacts.
 on:
   workflow_dispatch:
@@ -22,6 +23,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - platform: "macos-26"
+            args: "--target aarch64-apple-darwin"
+            target: "aarch64-apple-darwin"
+          - platform: "macos-latest"
+            args: "--target x86_64-apple-darwin"
+            target: "x86_64-apple-darwin"
           - platform: "ubuntu-22.04"
             args: "--bundles deb"
             target: "x86_64-unknown-linux-gnu"

@@ -11,9 +11,18 @@ Elke push naar `main` bouwt via **Actions → Fork Build**:
 
 - `handy-fork-ubuntu-22.04-x86_64-unknown-linux-gnu`: `.deb` voor Linux
 - `handy-fork-x86_64-pc-windows-msvc`: `.exe`-installer en `.msi` voor Windows
+- `handy-fork-aarch64-apple-darwin`: `.dmg` voor Macs met Apple Silicon (M1 en nieuwer)
+- `handy-fork-x86_64-apple-darwin`: `.dmg` voor Macs met een Intel-processor
 
 De builds zijn niet ondertekend. Windows SmartScreen waarschuwt daarom bij de eerste
 start: kies _Meer informatie → Toch uitvoeren_.
+
+Op de Mac is de app niet door Apple genotariseerd, dus macOS blokkeert de eerste
+start. Sleep Handy uit de `.dmg` naar Programma's, probeer hem te openen en kies
+daarna in _Systeeminstellingen → Privacy en beveiliging_ onderaan _Toch openen_. Of
+in Terminal: `xattr -dr com.apple.quarantine /Applications/Handy.app`. Omdat elke
+build een eigen handtekening heeft, moet je na een update de toegang tot
+Toegankelijkheid en Microfoon mogelijk opnieuw geven.
 
 ## Een upstream-update binnenhalen
 

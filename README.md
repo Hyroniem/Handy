@@ -5,7 +5,7 @@
 > - Turn it on under **Models → Transcription Server**. Set the server URL (including `/v1`) and, if your server needs one, an API key.
 > - If the server can't be reached, Handy falls back to the local model. It checks the server as soon as you start recording, so the local model is already loading while you speak, and unloads it again once the server answers.
 > - With the server off, it behaves exactly like upstream Handy and works completely offline. With the server on, audio leaves your computer and goes to the server you configured.
-> - Unsigned builds for Linux and Windows: **Actions → Fork Build → Artifacts**. The built-in updater is disabled, since it would install upstream Handy over this build.
+> - Unsigned builds for Linux, Windows and macOS (Apple Silicon and Intel): **Actions → Fork Build → Artifacts**. On macOS, allow the first launch under _System Settings → Privacy & Security → Open Anyway_, or run `xattr -dr com.apple.quarantine /Applications/Handy.app`. The built-in updater is disabled, since it would install upstream Handy over this build.
 >
 > Upstream Handy is local-only by design and will not add remote transcription, so please report issues with this feature [here](https://github.com/Hyroniem/handy-remote/issues), not upstream. Maintenance notes (in Dutch): [FORK.md](FORK.md).
 
