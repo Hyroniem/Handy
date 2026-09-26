@@ -639,6 +639,8 @@
     },
     "remoteTranscription": {
       "title": "Transcription Server",
+      "localModelsFallback": "Handy uses the active model below when the server can't be reached.",
+      "localModelsUnused": "Not used while the external server is on. Turn on the fallback to use a local model when the server can't be reached.",
       "enabled": {
         "label": "Use External Server",
         "description": "Send recordings to an OpenAI-compatible Whisper server instead of loading a local model. Saves GPU memory when that server already runs."

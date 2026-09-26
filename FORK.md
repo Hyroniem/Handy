@@ -1,7 +1,7 @@
 # Handy-fork: externe Whisper-server
 
 Deze fork van [cjpais/Handy](https://github.com/cjpais/Handy) voegt één optie toe:
-**Algemeen → Transcriptieserver → Externe server gebruiken**. Handy stuurt opnames
+**Modellen → Transcriptieserver → Externe server gebruiken**. Handy stuurt opnames
 dan naar een OpenAI-compatibele server (`{URL}/audio/transcriptions`) en laadt zelf
 geen model op de GPU.
 

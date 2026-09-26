@@ -639,6 +639,8 @@
     },
     "remoteTranscription": {
       "title": "Transcriptieserver",
+      "localModelsFallback": "Handy gebruikt het actieve model hieronder als de server niet bereikbaar is.",
+      "localModelsUnused": "Niet in gebruik zolang de externe server aan staat. Zet het terugvallen aan om een lokaal model te gebruiken als de server niet bereikbaar is.",
       "enabled": {
         "label": "Externe server gebruiken",
         "description": "Stuur opnames naar een OpenAI-compatibele Whisper-server in plaats van een lokaal model te laden. Bespaart GPU-geheugen als die server al draait."
