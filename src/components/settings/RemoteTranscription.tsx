@@ -17,12 +17,18 @@ export const RemoteTranscription: React.FC<RemoteTranscriptionProps> =
 
     const enabled = getSetting("remote_transcription_enabled") ?? false;
     const url = getSetting("remote_transcription_url") ?? "";
+    const apiKey = getSetting("remote_transcription_api_key") ?? "";
     const fallback = getSetting("remote_transcription_fallback") ?? true;
     const [localUrl, setLocalUrl] = useState(url);
+    const [localApiKey, setLocalApiKey] = useState(apiKey);
 
     useEffect(() => {
       setLocalUrl(url);
     }, [url]);
+
+    useEffect(() => {
+      setLocalApiKey(apiKey);
+    }, [apiKey]);
 
     return (
       <>
@@ -56,6 +62,33 @@ export const RemoteTranscription: React.FC<RemoteTranscriptionProps> =
               placeholder="http://127.0.0.1:8000/v1"
               variant="compact"
               disabled={isUpdating("remote_transcription_url")}
+              className="flex-1 min-w-[280px]"
+            />
+          </SettingContainer>
+        )}
+        {enabled && (
+          <SettingContainer
+            title={t("settings.remoteTranscription.apiKey.title")}
+            description={t("settings.remoteTranscription.apiKey.description")}
+            descriptionMode={descriptionMode}
+            grouped={grouped}
+          >
+            <Input
+              type="password"
+              value={localApiKey}
+              onChange={(event) => setLocalApiKey(event.target.value)}
+              onBlur={() => {
+                if (localApiKey !== apiKey) {
+                  updateSetting(
+                    "remote_transcription_api_key",
+                    localApiKey.trim(),
+                  );
+                }
+              }}
+              placeholder={t("settings.remoteTranscription.apiKey.placeholder")}
+              autoComplete="off"
+              variant="compact"
+              disabled={isUpdating("remote_transcription_api_key")}
               className="flex-1 min-w-[280px]"
             />
           </SettingContainer>

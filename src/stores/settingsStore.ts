@@ -166,6 +166,8 @@ const settingUpdaters: {
     commands.changeRemoteTranscriptionEnabledSetting(value as boolean),
   remote_transcription_url: (value) =>
     commands.changeRemoteTranscriptionUrlSetting(value as string),
+  remote_transcription_api_key: (value) =>
+    commands.changeRemoteTranscriptionApiKeySetting(value as string),
   remote_transcription_fallback: (value) =>
     commands.changeRemoteTranscriptionFallbackSetting(value as boolean),
   log_level: (value) => commands.setLogLevel(value as any),

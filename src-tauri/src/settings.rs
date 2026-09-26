@@ -352,6 +352,35 @@ impl std::ops::DerefMut for SecretMap {
     }
 }
 
+/// A single secret whose `Debug` output hides the value, so logging the
+/// settings never leaks it.
+#[derive(Clone, Default, Serialize, Deserialize, Type)]
+#[serde(transparent)]
+pub struct SecretString(String);
+
+impl SecretString {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+}
+
+impl fmt::Debug for SecretString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(if self.0.is_empty() {
+            "\"\""
+        } else {
+            "[REDACTED]"
+        })
+    }
+}
+
+impl std::ops::Deref for SecretString {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 /// The container-level `serde(default)` (backed by the `Default` impl below)
 /// guarantees every field — including ones added in the future — falls back to
@@ -522,6 +551,10 @@ pub struct AppSettings {
     /// Base URL of the OpenAI-compatible API, including the `/v1` part.
     #[serde(default = "default_remote_transcription_url")]
     pub remote_transcription_url: String,
+    /// Optional API key, sent as `Authorization: Bearer <key>`. Empty sends
+    /// no header, which is what a local server without auth expects.
+    #[serde(default)]
+    pub remote_transcription_api_key: SecretString,
     /// When the remote server fails, load the local model and transcribe
     /// with it instead of losing the recording.
     #[serde(default = "default_remote_transcription_fallback")]
@@ -992,6 +1025,7 @@ pub fn get_default_settings() -> AppSettings {
         overlay_style: default_overlay_style(),
         remote_transcription_enabled: false,
         remote_transcription_url: default_remote_transcription_url(),
+        remote_transcription_api_key: SecretString::default(),
         remote_transcription_fallback: default_remote_transcription_fallback(),
     }
 }
@@ -1741,8 +1775,11 @@ mod tests {
             .post_process_api_keys
             .insert("empty_provider".to_string(), "".to_string());
 
+        settings.remote_transcription_api_key = SecretString::new("sk-remote-secret-key-24680");
+
         let debug_output = format!("{:?}", settings);
 
+        assert!(!debug_output.contains("sk-remote-secret-key-24680"));
         assert!(!debug_output.contains("sk-proj-secret-key-12345"));
         assert!(!debug_output.contains("sk-ant-secret-key-67890"));
         assert!(debug_output.contains("[REDACTED]"));

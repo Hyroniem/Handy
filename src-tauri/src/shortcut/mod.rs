@@ -1299,6 +1299,18 @@ pub fn change_remote_transcription_url_setting(app: AppHandle, url: String) -> R
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_remote_transcription_api_key_setting(
+    app: AppHandle,
+    api_key: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.remote_transcription_api_key = settings::SecretString::new(api_key.trim());
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_remote_transcription_fallback_setting(
     app: AppHandle,
     enabled: bool,

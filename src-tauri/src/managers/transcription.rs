@@ -277,6 +277,15 @@ pub struct TranscriptionManager {
     /// `is_model_loaded()` consults this so the model still reports "loaded"
     /// while the worker holds it.
     active_engine_lease: Arc<AtomicU64>,
+    /// Last known reachability of the remote transcription server, refreshed
+    /// by a probe at the start of each recording and by every request.
+    remote_server_status: Arc<Mutex<Option<RemoteServerStatus>>>,
+}
+
+#[derive(Clone, Copy)]
+struct RemoteServerStatus {
+    online: bool,
+    checked_at: Instant,
 }
 
 impl TranscriptionManager {
@@ -297,6 +306,7 @@ impl TranscriptionManager {
             next_stream_worker_id: Arc::new(AtomicU64::new(1)),
             active_stream_worker: Arc::new(AtomicU64::new(0)),
             active_engine_lease: Arc::new(AtomicU64::new(0)),
+            remote_server_status: Arc::new(Mutex::new(None)),
         };
 
         // Start the idle watcher
@@ -743,9 +753,53 @@ impl TranscriptionManager {
     /// Kicks off the model loading in a background thread if it's not already loaded
     pub fn initiate_model_load(&self) {
         if get_settings(&self.app_handle).remote_transcription_enabled {
+            self.probe_remote_server();
             return;
         }
         self.initiate_local_model_load();
+    }
+
+    /// Check in the background, while the user is still speaking, whether the
+    /// remote server accepts connections. If it doesn't and the fallback is
+    /// on, the local model starts loading right away, so the recording can be
+    /// transcribed locally without first waiting for the request to fail.
+    fn probe_remote_server(&self) {
+        let manager = self.clone();
+        thread::spawn(move || {
+            let settings = get_settings(&manager.app_handle);
+            let online = remote_server_reachable(&settings.remote_transcription_url);
+            manager.set_remote_server_online(online);
+            if online {
+                debug!("Transcription server is reachable");
+            } else if settings.remote_transcription_fallback && !settings.selected_model.is_empty()
+            {
+                info!(
+                    "Transcription server at {} is unreachable; preloading local model '{}'",
+                    settings.remote_transcription_url, settings.selected_model
+                );
+                manager.initiate_local_model_load();
+            } else {
+                info!(
+                    "Transcription server at {} is unreachable",
+                    settings.remote_transcription_url
+                );
+            }
+        });
+    }
+
+    fn set_remote_server_online(&self, online: bool) {
+        *self.remote_server_status.lock().unwrap() = Some(RemoteServerStatus {
+            online,
+            checked_at: Instant::now(),
+        });
+    }
+
+    /// True when a recent probe or request found the server unreachable.
+    fn remote_server_known_offline(&self) -> bool {
+        self.remote_server_status
+            .lock()
+            .unwrap()
+            .is_some_and(|s| !s.online && s.checked_at.elapsed() < REMOTE_STATUS_MAX_AGE)
     }
 
     /// Like [`Self::initiate_model_load`], but also while a remote server is
@@ -1208,9 +1262,35 @@ impl TranscriptionManager {
         let settings = get_settings(&self.app_handle);
 
         if settings.remote_transcription_enabled {
-            match transcribe_remote(&audio, &settings) {
-                Ok(text) => return Ok(text),
-                Err(e) if settings.remote_transcription_fallback => {
+            let can_fall_back =
+                settings.remote_transcription_fallback && !settings.selected_model.is_empty();
+            // The probe at recording start already found the server down:
+            // don't spend the connect timeout finding that out again.
+            let result = if can_fall_back && self.remote_server_known_offline() {
+                Err(anyhow::anyhow!("server unreachable at recording start"))
+            } else {
+                transcribe_remote(&audio, &settings)
+            };
+            match result {
+                Ok(text) => {
+                    self.set_remote_server_online(true);
+                    // The server is back: free the model the fallback loaded,
+                    // unless it is still loading for a concurrent request.
+                    if self.is_model_loaded() && !*self.is_loading.lock().unwrap() {
+                        info!("Transcription server is back; unloading local fallback model");
+                        if let Err(e) = self.unload_model() {
+                            warn!("Failed to unload local fallback model: {}", e);
+                        }
+                    }
+                    return Ok(text);
+                }
+                Err(e) => {
+                    if e.is::<RemoteUnreachable>() {
+                        self.set_remote_server_online(false);
+                    }
+                    if !settings.remote_transcription_fallback {
+                        return Err(e);
+                    }
                     if settings.selected_model.is_empty() {
                         return Err(e.context("no local model selected to fall back on"));
                     }
@@ -1221,7 +1301,6 @@ impl TranscriptionManager {
                     // The wait below picks up this load like any other.
                     self.initiate_local_model_load();
                 }
-                Err(e) => return Err(e),
             }
         }
 
@@ -1568,6 +1647,43 @@ const REMOTE_TRANSCRIPTION_TIMEOUT: Duration = Duration::from_secs(300);
 /// A server that is down refuses or ignores the connection; don't make the
 /// user wait long before the local fallback takes over.
 const REMOTE_TRANSCRIPTION_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+/// Timeout of the reachability probe at recording start. A server on the
+/// local network or the same machine accepts a connection in milliseconds.
+const REMOTE_PROBE_TIMEOUT: Duration = Duration::from_millis(1000);
+/// How long a probe result counts as current. Recordings are rarely longer.
+const REMOTE_STATUS_MAX_AGE: Duration = Duration::from_secs(120);
+
+/// The request never reached the server (as opposed to the server answering
+/// with an error), so the server counts as offline.
+#[derive(Debug)]
+struct RemoteUnreachable(String);
+
+impl std::fmt::Display for RemoteUnreachable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for RemoteUnreachable {}
+
+/// Whether a TCP connection to the host and port of `base_url` succeeds.
+/// Only the connection is tested, so no API key is needed.
+fn remote_server_reachable(base_url: &str) -> bool {
+    use std::net::{TcpStream, ToSocketAddrs};
+    let Ok(url) = reqwest::Url::parse(base_url.trim()) else {
+        return false;
+    };
+    let (Some(host), Some(port)) = (url.host_str(), url.port_or_known_default()) else {
+        return false;
+    };
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    let Ok(addrs) = (host, port).to_socket_addrs() else {
+        return false;
+    };
+    addrs
+        .into_iter()
+        .any(|addr| TcpStream::connect_timeout(&addr, REMOTE_PROBE_TIMEOUT).is_ok())
+}
 
 #[derive(Deserialize)]
 struct RemoteTranscriptionResponse {
@@ -1595,6 +1711,7 @@ fn transcribe_remote(audio: &[f32], settings: &AppSettings) -> Result<String> {
     // Whisper servers take custom words as the initial prompt, the same way
     // the local whisper path does.
     let prompt = settings.custom_words.join(", ");
+    let api_key = settings.remote_transcription_api_key.trim().to_string();
     let wav = encode_wav(audio)?;
 
     // reqwest is async and transcribe() is called both from async tasks and
@@ -1619,21 +1736,26 @@ fn transcribe_remote(audio: &[f32], settings: &AppSettings) -> Result<String> {
                 form = form.text("prompt", prompt);
             }
 
-            let response = reqwest::Client::builder()
+            let mut request = reqwest::Client::builder()
                 .timeout(REMOTE_TRANSCRIPTION_TIMEOUT)
                 .connect_timeout(REMOTE_TRANSCRIPTION_CONNECT_TIMEOUT)
                 .build()?
                 .post(&request_url)
-                .multipart(form)
-                .send()
-                .await
-                .map_err(|e| {
-                    anyhow::anyhow!(
-                        "Could not reach transcription server at {}: {}",
-                        request_url,
-                        e
-                    )
-                })?;
+                .multipart(form);
+            if !api_key.is_empty() {
+                request = request.bearer_auth(&api_key);
+            }
+            let response = request.send().await.map_err(|e| {
+                let message = format!(
+                    "Could not reach transcription server at {}: {}",
+                    request_url, e
+                );
+                if e.is_connect() {
+                    anyhow::Error::new(RemoteUnreachable(message))
+                } else {
+                    anyhow::anyhow!(message)
+                }
+            })?;
             let status = response.status();
             let body = response.text().await?;
             if !status.is_success() {

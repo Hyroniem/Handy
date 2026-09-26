@@ -647,9 +647,14 @@
         "title": "Server-URL",
         "description": "Basis-URL van de API, inclusief /v1. Handy stuurt naar {URL}/audio/transcriptions."
       },
+      "apiKey": {
+        "title": "API-sleutel",
+        "description": "Optioneel. Wordt als Bearer-token in de Authorization-header meegestuurd. Laat leeg voor een server zonder authenticatie.",
+        "placeholder": "Optioneel"
+      },
       "fallback": {
         "label": "Terugvallen op lokaal model",
-        "description": "Laad het lokale model en transcribeer daarmee als de server niet bereikbaar is of een fout geeft. De volgende opname probeert eerst weer de server."
+        "description": "Transcribeer met het lokale model als de server niet bereikbaar is of een fout geeft. Handy controleert de server zodra de opname begint, zodat het lokale model al laadt terwijl je spreekt. Reageert de server weer, dan wordt het lokale model ontladen."
       }
     }
   },

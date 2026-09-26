@@ -367,6 +367,14 @@ async changeRemoteTranscriptionUrlSetting(url: string) : Promise<Result<null, st
     else return { status: "error", error: e  as any };
 }
 },
+async changeRemoteTranscriptionApiKeySetting(apiKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_remote_transcription_api_key_setting", { apiKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeRemoteTranscriptionFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_remote_transcription_fallback_setting", { enabled }) };
@@ -1041,6 +1049,11 @@ remote_transcription_enabled?: boolean;
  */
 remote_transcription_url?: string; 
 /**
+ * Optional API key, sent as `Authorization: Bearer <key>`. Empty sends
+ * no header, which is what a local server without auth expects.
+ */
+remote_transcription_api_key?: SecretString; 
+/**
  * When the remote server fails, load the local model and transcribe
  * with it instead of losing the recording.
  */
@@ -1119,6 +1132,11 @@ export type PermissionAccess = "allowed" | "denied" | "unknown"
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
+/**
+ * A single secret whose `Debug` output hides the value, so logging the
+ * settings never leaks it.
+ */
+export type SecretString = string
 export type SecureInputStatus = { 
 /**
  * Secure input is currently enabled (live check)
